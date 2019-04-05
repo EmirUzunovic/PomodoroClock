@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+  <head>
+      <meta charset="utf-8" />
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <title>Pomodoro Clock</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="stylesheet" type="text/css" media="screen" href="main.css" />
+      <script src="https://unpkg.com/react@16/umd/react.production.min.js"></script>
+      <script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js"></script>
+      <script src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>    
+      <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+  </head>
+  <body>
+  
+  <script type="text/babel">
+    
+      const Header = () => <h1>Pomodoro Clock</h1>
+
+      /*depending on props break or session, Settimeout generate title*/
+      const SetTimer = ({type, value, handleClick}) => (
+        <div className = 'SetTimer'>
+          <div id={`${type}-label`}>{`${type == 'session' ? 'Session ': 'Break '}Length`}</div>
+            <div className = 'SetTimer-controls'>
+              <a id={`${type}-decrement`} onClick={() => handleClick(false,`${type}Value`)}><i className="fas fa-minus-circle"></i></a>
+              <h1 id={`${type}-length`}>{value}</h1>
+              <a id={`${type}-increment`} onClick={() => handleClick(true, `${type}Value`)}><i className="fas fa-plus-circle"></i></a>
+            </div>
+        </div>
+      )
+
+      /*conditional output*/
+      const Timer = ({mode, time }) =>(
+        <div className='Timer'>
+          <h1 id="timer-label">{mode == 'session' ? 'Session' : 'Break'}</h1>
+          <h1 id="time-left">{time}</h1>
+        </div>
+      ) 
+
+      /*contorls rendering buttons for pause start reset*/
+      const Controls = ({active, handleReset, handlePlayPause}) => (
+        <div className='Controls'>
+          <a id="start_stop" onClick = {handlePlayPause}>
+            {active ? <span><i className="fas fa-pause-circle"></i></span>:<span><i className="fas fa-play"></i></span>}
+          </a>
+          <a id="reset" onClick= {handleReset}><i className="fas fa-redo"></i></a>
+        </div>
+      )
+
+
+      class App extends React.Component {
+      constructor(props) {
+          super(props);
+          this.state = {
+            breakValue: 5,
+            sessionValue: 25,
+            mode:'session',
+            time: 25*60*1000, //25min
+            active: false,
+            touched: false
+          }    
+        }
+
+        componentDidUpdate(prevProps, prevState){
+            if(prevState.time === 0 && prevState.mode === 'session'){
+                this.setState({time : this.state.breakValue * 60 * 1000, mode: 'break'})
+                this.audio.play()
+            }
+            if(prevState.time === 0 && prevState.mode === 'break'){
+              this.setState({time : this.state.sessionValue * 60 * 1000, mode: 'session'})
+              this.audio.play()
+            }
+        }
+
+        handleReset = ()=> {
+          this.setState({ breakValue: 5, sessionValue: 25, time: 25*60*1000,mode:'session', active: false, touched: false})
+          clearInterval(this.pomodoro)
+          this.audio.pause()
+          this.audio.currentTime = 0
+        }
+
+        handlePlayPause = () => {
+          //if active is true (pause button) then stop timer, and show play button
+          if(this.state.active){
+              clearInterval(this.pomodoro)
+              this.setState({active: false})
+          //if active is false (play) then check for touched state
+          } else {
+              //if touched is true continue to countdown and set active to pause
+              if(this.state.touched){
+                  this.pomodoro = setInterval(() => this.setState({time: this.state.time - 1000}), 1000);
+                  this.setState({active: true})
+              //if touchen is false set users session(not a default), and start countdown, touched true active(pause button)
+              }else {
+                  this.setState({
+                      time: this.state.sessionValue *60 * 1000, 
+                      touched: true, 
+                      active: true}, ()=>this.pomodoro = setInterval(() => this.setState({time: this.state.time - 1000}), 1000))
+              }
+          }  
+        }
+
+        handleSetTimers = (inc, type) =>{
+          //stop function if state is of type is 60 and add button was clicked
+          if(this.state[type] == 60 && inc) return
+          //stop function if state is of type is 1 and minus button was clicked
+          if(this.state[type] == 1 && !inc) return
+          //change state from type break / session, same type state if it is currently inc true add increment for one if false decrement for one
+          this.setState({ [type] : this.state[type] + (inc ? 1: -1) })
+        } 
+
+        render() {
+          return (
+            <div id="pomodoroBody">
+              <Header/>
+              <Timer mode= {this.state.mode} time ={moment(this.state.time).format('mm:ss')}/>
+
+              <Controls 
+                  active={this.state.active} 
+                  handleReset={this.handleReset} 
+                  handlePlayPause={this.handlePlayPause}
+              /> 
+
+              <div className= 'settings'>
+                <SetTimer type = 'break' value = {this.state.breakValue} handleClick = {this.handleSetTimers}/>
+                <SetTimer type = 'session' value = {this.state.sessionValue} handleClick = {this.handleSetTimers}/>
+              </div>
+              
+              <audio id='beep' 
+                src='https://s3-us-west-1.amazonaws.com/benjaminadk/Data+synth+beep+high+and+sweet.mp3'  
+                //reference to actual DOM element
+                ref = {ref => this.audio = ref}>
+              </audio>
+            </div>
+          );
+        }
+      }
+
+
+      ReactDOM.render(<App date={new Date()} /> ,document.getElementById('root')); 
+    </script>
+          
+    <div id="root"></div>
+  </body>
+</html>
